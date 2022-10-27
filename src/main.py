@@ -12,12 +12,61 @@ Rules:
     - After the host is finished, the cards will be compared
     - If either the player or the host gets a blackjack (picture card and ass)
       the person with the blackjack wons
-
+    - There is the possibility of investing money at the beginning and
+      using the money during the game
 """
-from os import system
+from os import system, name
 from random import shuffle
 from enum import Enum
 from typing import List
+from dataclasses import dataclass
+from time import sleep
+
+
+@dataclass
+class Balance:
+    """
+    Balance of the player
+    """
+    player_balance: int
+
+
+def get_input_int(user_message: str, min_input: int = 1, max_input: int = 999999) -> int:
+    """Asks for an integer input from the user.
+
+    Args:
+        user_message (str): Message for the user
+
+    Returns:
+        int: Integer that the user puts in.
+    """
+    val = 0
+    while True:
+        _input = input(user_message)
+        try:
+            val = int(_input)
+        except:
+            print("This was not a valid integer. Please try again.")
+            continue
+
+        if min_input <= val <= max_input:
+            return val
+        
+        if min_input > val:
+            print(f"The entered value should exceed {min_input}")
+        else:
+            print(f"The maximum input should not exceed {max_input}")
+
+
+def clear_screen() -> int:
+    """
+    Clears the screen of the user.
+    """
+    if name == 'nt':
+        system('cls')
+    else:
+        system('clear')
+    return 0
 
 
 class CardTypes(Enum):
@@ -108,7 +157,8 @@ def create_card_deck() -> List[Card]:
 
 
 class Player:
-    """_summary_
+    """
+    Class for all the things that have to do with the player
     """
     def __init__(self, cards: list = None, is_host: bool = False) -> None:
         if cards is None:
@@ -187,11 +237,12 @@ class Player:
 
 
 def draw_card(player: Player, cards: List[Card]) -> None:
-    """_summary_
+    """Function draws a card and adds it to the card deck
+    of the player.
 
     Args:
-        player (Player): _description_
-        cards (List[Card]): _description_
+        player (Player): Object of class Player
+        cards (List[Card]): List of cards
     """
     new_card = cards.pop()
     if player.is_host:
@@ -230,7 +281,16 @@ def player_plays(player: Player, cards: List[Card]) -> bool:
             return True
 
 
-def host_plays(host: Player, cards: list) -> True:
+def host_plays(host: Player, cards: List[Card]) -> True:
+    """Function that plays for the host.
+
+    Args:
+        host (Player): Object of class Player
+        cards (list): List of cards
+
+    Returns:
+        True: True if Host has not lost the game
+    """
     done = False
     while not done:
         if host.score < 17:
@@ -249,9 +309,17 @@ def host_plays(host: Player, cards: list) -> True:
             return False
 
 
-def main():
-    """_summary_
+def main(balance: Balance) -> None:
     """
+    Main function starts the game.
+
+    Args:
+        balance (Balance): object of class Balance that represents
+            the current balance (money) of the player.
+    """
+
+    this_rounds_invest = get_input_int(f'You have {balance.player_balance} in your bank. How much money do you want to invest this round? ', 1, balance.player_balance)
+
     cards = create_card_deck()
     shuffle(cards)
 
@@ -263,30 +331,50 @@ def main():
 
     if player.has_blackjack():
         print("Blackjack! You won!")
+        balance.player_balance += this_rounds_invest * .5
         return
 
     result_player = player_plays(player, cards)
     if not result_player:
+        balance.player_balance -= this_rounds_invest
         return
 
-    print(100 * '-')
+    print('\nThe host is playing now:\n')
 
     result_host = host_plays(host, cards)
 
     if not result_host:
+        balance.player_balance += this_rounds_invest
         print("The host lost the game")
     elif player.score > host.score:
+        balance.player_balance += this_rounds_invest
         print("You won")
     elif host.score > player.score:
+        balance.player_balance -= this_rounds_invest
         print("You lost")
     else:
         print("The host and you got the same points")
 
 
 if __name__ == '__main__':
+    clear_screen()
+    print("WELCOME TO BLACKJACK!")
+    sleep(2)
+    clear_screen()
+
+    total_money_spend = get_input_int('Enter the amount of money you want to invest: ', 1, 100_000)
+    balance = Balance(total_money_spend)
+
     while True:
-        main()
+        main(balance)
+
+        if balance.player_balance <= 0:
+            print("Your broke. Go home!")
+            break
+        else:
+            print(f"You now have CHF {balance.player_balance} in your bank.")
+
         if input('Do you want to play again? ') != 'y':
             break
         else:
-            system('cls')
+            clear_screen()
